@@ -59,9 +59,7 @@ impl SubTest for TestUnwind {
         }
 
         let mut sink = Sink(Vec::new());
-        comp_ctx
-            .emit_unwind_info(isa, FrameUnwindKind::Fastcall, &mut sink)
-            .expect("can emit unwind info");
+        comp_ctx.emit_unwind_info(isa, FrameUnwindKind::Fastcall, &mut sink);
 
         let mut text = String::new();
         if sink.0.is_empty() {
@@ -179,15 +177,15 @@ impl UnwindCode {
 
 #[derive(Debug)]
 enum UnwindOperation {
-    PushNonvolatileRegister = 0,
-    LargeStackAlloc = 1,
-    SmallStackAlloc = 2,
-    SetFramePointer = 3,
-    SaveNonvolatileRegister = 4,
-    SaveNonvolatileRegisterFar = 5,
-    SaveXmm128 = 8,
-    SaveXmm128Far = 9,
-    PushMachineFrame = 10,
+    PushNonvolatileRegister,
+    LargeStackAlloc,
+    SmallStackAlloc,
+    SetFramePointer,
+    SaveNonvolatileRegister,
+    SaveNonvolatileRegisterFar,
+    SaveXmm128,
+    SaveXmm128Far,
+    PushMachineFrame,
 }
 
 impl From<u8> for UnwindOperation {
@@ -200,9 +198,9 @@ impl From<u8> for UnwindOperation {
             3 => Self::SetFramePointer,
             4 => Self::SaveNonvolatileRegister,
             5 => Self::SaveNonvolatileRegisterFar,
-            8 => Self::SaveXmm128,
-            9 => Self::SaveXmm128Far,
-            10 => Self::PushMachineFrame,
+            6 => Self::SaveXmm128,
+            7 => Self::SaveXmm128Far,
+            8 => Self::PushMachineFrame,
             _ => panic!("unsupported unwind operation"),
         }
     }

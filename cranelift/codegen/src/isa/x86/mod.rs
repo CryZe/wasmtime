@@ -177,8 +177,8 @@ impl TargetIsa for Isa {
         func: &ir::Function,
         kind: FrameUnwindKind,
         sink: &mut dyn FrameUnwindSink,
-    ) -> CodegenResult<()> {
-        abi::emit_unwind_info(func, self, kind, sink)
+    ) {
+        abi::emit_unwind_info(func, self, kind, sink);
     }
 }
 
