@@ -2,9 +2,12 @@ use crate::entry::{Entry, EntryHandle};
 use crate::fdpool::FdPool;
 use crate::handle::Handle;
 use crate::sys::oshandle::{OsHandle, OsHandleExt};
-use crate::virtfs::{VirtualDir, VirtualDirEntry};
+use crate::virtfs::{InMemoryFile, VirtualDir, VirtualDirEntry};
 use crate::wasi::types;
-use crate::wasi::{Errno, Result};
+use crate::{
+    wasi::{Errno, Result},
+    FileContents,
+};
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -45,6 +48,7 @@ type WasiCtxBuilderResult<T> = std::result::Result<T, WasiCtxBuilderError>;
 enum PendingEntry {
     Thunk(fn() -> io::Result<OsHandle>),
     File(File),
+    Virtual(Box<dyn FileContents>),
 }
 
 impl std::fmt::Debug for PendingEntry {
@@ -56,6 +60,7 @@ impl std::fmt::Debug for PendingEntry {
                 f as *const fn() -> io::Result<OsHandle>
             ),
             Self::File(f) => write!(fmt, "PendingEntry::File({:?})", f),
+            Self::Virtual(_) => write!(fmt, "PendingEntry::Virtual(...)"),
         }
     }
 }
@@ -249,6 +254,24 @@ impl WasiCtxBuilder {
         self
     }
 
+    /// Provide a virtual file to use as stdin
+    pub fn stdin_virt(&mut self, file: Box<dyn FileContents>) -> &mut Self {
+        self.stdin = Some(PendingEntry::Virtual(file));
+        self
+    }
+
+    /// Provide a virtual file to use as stdout
+    pub fn stdout_virt(&mut self, file: Box<dyn FileContents>) -> &mut Self {
+        self.stdout = Some(PendingEntry::Virtual(file));
+        self
+    }
+
+    /// Provide a virtual file to use as stderr
+    pub fn stderr_virt(&mut self, file: Box<dyn FileContents>) -> &mut Self {
+        self.stderr = Some(PendingEntry::Virtual(file));
+        self
+    }
+
     /// Add a preopened directory.
     pub fn preopened_dir<P: AsRef<Path>>(&mut self, dir: File, guest_path: P) -> &mut Self {
         self.preopens.as_mut().unwrap().push((
@@ -336,22 +359,15 @@ impl WasiCtxBuilder {
             self.stderr.take().unwrap(),
         ] {
             log::debug!("WasiCtx inserting entry {:?}", pending);
-            let fd = match pending {
-                PendingEntry::Thunk(f) => {
-                    let handle = EntryHandle::new(f()?);
-                    let entry = Entry::from(handle)?;
-                    entries
-                        .insert(entry)
-                        .ok_or(WasiCtxBuilderError::TooManyFilesOpen)?
-                }
-                PendingEntry::File(f) => {
-                    let handle = EntryHandle::new(OsHandle::from(f));
-                    let entry = Entry::from(handle)?;
-                    entries
-                        .insert(entry)
-                        .ok_or(WasiCtxBuilderError::TooManyFilesOpen)?
-                }
+            let handle = match pending {
+                PendingEntry::Thunk(f) => EntryHandle::new(f()?),
+                PendingEntry::File(f) => EntryHandle::new(OsHandle::from(f)),
+                PendingEntry::Virtual(f) => EntryHandle::new(InMemoryFile::new(f)),
             };
+            let entry = Entry::from(handle)?;
+            let fd = entries
+                .insert(entry)
+                .ok_or(WasiCtxBuilderError::TooManyFilesOpen)?;
             log::debug!("WasiCtx inserted at {:?}", fd);
         }
         // Then add the preopen entries.
