@@ -38,3 +38,4 @@ pub mod wasi;
 pub use ctx::{WasiCtx, WasiCtxBuilder};
 pub use sys::preopen_dir;
 pub use virtfs::{FileContents, VirtualDirEntry};
+pub use wasi::types::Filesize;
