@@ -818,7 +818,11 @@ impl<'a> WasiSnapshotPreview1 for WasiCtx {
     fn proc_exit(&self, rval: types::Exitcode) -> std::result::Result<(), ()> {
         // TODO: Rather than call std::process::exit here, we should trigger a
         // stack unwind similar to a trap.
-        std::process::exit(rval as i32);
+        if self.proc_exit_exists_host {
+            std::process::exit(rval as i32);
+        } else {
+            Err(())
+        }
     }
 
     fn proc_raise(&self, _sig: types::Signal) -> Result<()> {

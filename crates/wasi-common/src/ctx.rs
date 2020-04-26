@@ -113,6 +113,7 @@ pub struct WasiCtxBuilder {
     preopens: Option<Vec<(PathBuf, Box<dyn Handle>)>>,
     args: Option<Vec<PendingCString>>,
     env: Option<HashMap<PendingCString, PendingCString>>,
+    proc_exit_exists_host: bool,
 }
 
 impl WasiCtxBuilder {
@@ -129,6 +130,7 @@ impl WasiCtxBuilder {
             preopens: Some(Vec::new()),
             args: Some(Vec::new()),
             env: Some(HashMap::new()),
+            proc_exit_exists_host: false,
         }
     }
 
@@ -371,6 +373,7 @@ impl WasiCtxBuilder {
             args,
             env,
             entries: RefCell::new(entries),
+            proc_exit_exists_host: self.proc_exit_exists_host,
         })
     }
 }
@@ -417,6 +420,7 @@ pub struct WasiCtx {
     entries: RefCell<EntryTable>,
     pub(crate) args: Vec<CString>,
     pub(crate) env: Vec<CString>,
+    pub(crate) proc_exit_exists_host: bool,
 }
 
 impl WasiCtx {
